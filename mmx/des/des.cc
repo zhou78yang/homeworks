@@ -10,6 +10,7 @@ const int DES::IP[64] = {
     59, 51, 43, 35, 27, 19, 11, 3,
     61, 53, 45, 37, 29, 21, 13, 5,
     63, 55, 47, 39, 31, 23, 15, 7};
+
 // 逆初始变换IPI
 const int DES::IPI[64] = {
     40,  8, 48, 16, 56, 24, 64, 32,
@@ -21,6 +22,8 @@ const int DES::IPI[64] = {
     34,  2, 42, 10, 50, 18, 58, 26,
     33,  1, 41,  9, 49, 17, 57, 25};
 
+
+
 // 密钥置换选择1
 const int DES::keyIP[56] = {
     57, 49, 41, 33, 25, 17,  9,
@@ -31,16 +34,27 @@ const int DES::keyIP[56] = {
      7, 62, 54, 46, 38, 30, 22,
     14,  6, 61, 53, 45, 37, 29,
     21, 13,  5, 28, 20, 12,  4};
-// 密钥循环左移位数
-const int DES::encKeyRound[16] = {
-    1, 1, 2, 2, 2, 2, 2, 2,
-    1, 2, 2, 2, 2, 2, 2, 1};
+
 // 密钥置换选择2
 const int DES::keyCP[48] = {
     14, 17, 11, 24,  1,  5,  3, 28, 15,  6, 21, 10,
     23, 19, 12,  4, 26,  8, 16,  7, 27, 20, 13,  2,
     41, 52, 31, 37, 47, 55, 30, 40, 51, 45, 33, 48,
     44, 49, 39, 56, 34, 53, 46, 42, 50, 36, 29, 32};
+
+// 密钥循环左移位数
+const int DES::encKeyRound[16] = {
+    1, 1, 2, 2, 2, 2, 2, 2,
+    1, 2, 2, 2, 2, 2, 2, 1};
+
+
+
+// 扩展变换E : 输入32位
+const int DES::EP[48] = {
+    32,  1,  2,  3,  4,  5,  4,  5,  6,  7,  8,  9,
+     8,  9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17,
+    16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25,
+    24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32,  1};
 
 // S盒定义
 const int DES::SBox[32][16] = {
@@ -85,12 +99,6 @@ const int DES::SBox[32][16] = {
     7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8,
     2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11};
 
-// 扩展变换E : 输入32位
-const int DES::EP[48] = {
-    32,  1,  2,  3,  4,  5,  4,  5,  6,  7,  8,  9,
-     8,  9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17,
-    16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25,
-    24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32,  1};
 // P置换 : 输入32位，来自S盒
 const int DES::P[32] = {
     16,  7, 20, 21, 29, 12, 28, 17,
@@ -98,7 +106,11 @@ const int DES::P[32] = {
      2,  8, 24, 14, 32, 27,  3,  9,
     19, 13, 30,  6, 22, 11,  4, 25};   
 
-void DES::setKey(string k)
+
+
+// 设置密钥
+//  输入限制：k的长度为8
+void DES::setKey(char *k)
 {
     key = 0;
     unsigned long long c;
@@ -109,7 +121,9 @@ void DES::setKey(string k)
     }
 }
 
-void DES::setPlainText(string p)
+// 设置明文
+//  输入限制：p的长度为8
+void DES::setPlainText(char *p)
 {
     unsigned long long c;
     for(int i = 0; i < 8; i++)
@@ -119,38 +133,44 @@ void DES::setPlainText(string p)
     }
 }
 
+
+// 轮密钥生成器
+//  生成16个密钥, 对应16轮乘积变换
 void DES::genEncKey()
 {
     unsigned long long gKey;                        // 临时计算的密钥
-    gKey = permutations(key, keyIP, 64, 56);        // 密钥初始置换
+    gKey = permutations(key, keyIP, 64, 56);            // 置换选择1
     for(int i = 0; i < 16; i++)
     {
         gKey = keyLS(key, encKeyRound[i]);
-        encKey[i] = permutations(gKey, keyCP, 56, 48);  // 压缩置换
+        encKey[i] = permutations(gKey, keyCP, 56, 48);  // 置换选择2
     }
 }
 
+// 密钥循环左移操作
+//  input: encKey[i-1], encKeyRound[i-1]
+//  output: encKey[i]
 unsigned long long DES::keyLS(unsigned long long k, int n)
 {
     unsigned long long tempKey = 0;
     unsigned long long L, R;                        // 密钥的左右两半
     L = (k&0xFFFFFFF0000000LL) >> 28;
     R = k &0x0000000FFFFFFFLL;
-    if(0 == n)
-    {
-        tempKey = k;
-    }
     if(1 == n)
     {
-        L = ((L&0x3FFFFFF)<<1) | ((L>>27)&1);
-        R = ((R&0x3FFFFFF)<<1) | ((R>>27)&1);
+        L = ((L&0x7FFFFFF)<<1) | ((L>>27)&1);
+        R = ((R&0x7FFFFFF)<<1) | ((R>>27)&1);
         tempKey = (L<<28) | R;
     }
-    if(2 == n)
+    else if(2 == n)
     {
         L = ((L&0x3FFFFFF)<<2) | ((L>>26)&3);
         R = ((R&0x3FFFFFF)<<2) | ((R>>26)&3);
         tempKey = (L<<28) | R;
+    }
+    else
+    {
+        tempKey = k;
     }
     return tempKey;
 }
@@ -236,7 +256,7 @@ void DES::showBinary(unsigned long long num)
     for(int i = 63; i >= 0; i--)
     {
         cout << ((num>>i) & 1);
-        if(i % 8 == 0) cout << "|";
+        if(i % 8 == 0) cout << " ";     // 字节间分隔符
     }
     cout << endl;
 }
