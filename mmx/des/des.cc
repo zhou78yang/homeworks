@@ -24,6 +24,8 @@ const int DES::IPI[64] = {
 
 
 
+
+
 // 密钥置换选择1
 const int DES::keyIP[56] = {
     57, 49, 41, 33, 25, 17,  9,
@@ -49,6 +51,8 @@ const int DES::encKeyRound[16] = {
 
 
 
+
+
 // 扩展变换E : 输入32位
 const int DES::EP[48] = {
     32,  1,  2,  3,  4,  5,  4,  5,  6,  7,  8,  9,
@@ -57,7 +61,7 @@ const int DES::EP[48] = {
     24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32,  1};
 
 // S盒定义
-const int DES::SBox[32][16] = {
+const int DES::SBox[8][4][16] = {
     // S1 Box
     14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7,
     0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8,
@@ -108,9 +112,17 @@ const int DES::P[32] = {
 
 
 
+
+
+
+
+
+
+
+
 // 设置密钥
 //  输入限制：k的长度为8
-void DES::setKey(char *k)
+void DES::setKey(const char k[])
 {
     key = 0;
     unsigned long long c;
@@ -121,9 +133,10 @@ void DES::setKey(char *k)
     }
 }
 
+
 // 设置明文
 //  输入限制：p的长度为8
-void DES::setPlainText(char *p)
+void DES::setPlainText(const char p[])
 {
     unsigned long long c;
     for(int i = 0; i < 8; i++)
@@ -134,26 +147,32 @@ void DES::setPlainText(char *p)
 }
 
 
+
+
+
+
+
 // 轮密钥生成器
 //  生成16个密钥, 对应16轮乘积变换
 void DES::genEncKey()
 {
-    unsigned long long gKey;                        // 临时计算的密钥
+    unsigned long long gKey;                            // 临时计算的密钥
     gKey = permutations(key, keyIP, 64, 56);            // 置换选择1
+
     for(int i = 0; i < 16; i++)
     {
-        gKey = keyLS(key, encKeyRound[i]);
+        gKey = keyLS(gKey, encKeyRound[i]);
         encKey[i] = permutations(gKey, keyCP, 56, 48);  // 置换选择2
     }
 }
 
 // 密钥循环左移操作
-//  input: encKey[i-1], encKeyRound[i-1]
-//  output: encKey[i]
+//  输入: encKey[i-1], encKeyRound[i-1]
+//  输出: encKey[i]
 unsigned long long DES::keyLS(unsigned long long k, int n)
 {
     unsigned long long tempKey = 0;
-    unsigned long long L, R;                        // 密钥的左右两半
+    unsigned long long L, R;                            // 密钥的左右两半
     L = (k&0xFFFFFFF0000000LL) >> 28;
     R = k &0x0000000FFFFFFFLL;
     if(1 == n)
@@ -176,8 +195,13 @@ unsigned long long DES::keyLS(unsigned long long k, int n)
 }
 
 
+// 置换操作
+//  num : 要处理的数字
+//  P   : 选择的置换数组
+//  pmax: 置换数组位数/输入的位数
+//  n   : 输出的位数
 unsigned long long DES::permutations(unsigned long long num,
-            const int p[], int pmax, int n)
+                                     const int p[], int pmax, int n)
 {
     unsigned long long temp = 0;
     for(int i = 0; i < n; i++)
@@ -189,45 +213,62 @@ unsigned long long DES::permutations(unsigned long long num,
 }
 
 
+// 加密操作
 void DES::encryption()
 {
+    // 1. 初始置换IP
     unsigned long long temp = permutations(plainText, IP, 64, 64);
     unsigned long long L, R, tempR;
+
     L = (temp&0xFFFFFFFF00000000LL)>>32;
     R = (temp&0x00000000FFFFFFFFLL);
     tempR = R;
+
+    // 2. 16轮乘积变换
     for(int i = 0; i < 16; i++)
     {
-        tempR = permutations(R, EP, 32, 48);
-        tempR = tempR ^ encKey[i];
-        tempR = SBoxes(tempR);
-        tempR = permutations(tempR, P, 32, 32);
-        tempR = tempR ^ L;
+        tempR = permutations(R, EP, 32, 48);        // 2-1. 拓展变换E
+        tempR = tempR ^ encKey[i];                  
+        tempR = SBoxes(tempR);                      // 2-2. S盒操作
+        tempR = permutations(tempR, P, 32, 32);     // 2-3. P盒操作
+        tempR = tempR ^ L;                          
         L = R;
         R = tempR;
     }
     temp = (R<<32) | L;
-    temp = permutations(temp, IPI, 64, 64);
-    cipherText = temp;
+
+    // 3. 逆初始置换IPI
+    cipherText = permutations(temp, IPI, 64, 64);
 }
 
-
+// S盒操作
+//  要求对数据进行压缩,
+//  输入48位数据，输出32位运算结果.
 unsigned long long DES::SBoxes(unsigned long long num)
 {
     unsigned long long temp, result = 0;
+    int x, y;
+
+    // 8个S盒操作
     for(int i = 0; i < 8; i++)
     {
-        temp = (num>>((7-i)*6))&0x3F;
-        int x = ((temp>>4)&0x2) | (temp&0x1) + i * 4;
-        int y = (temp>>1)&0xF;
-        temp = SBox[x][y];
+        temp = (num>>((7-i)*6))&0x3F;               // 6位输入
+        x = ((temp>>4)&0x2) | (temp&0x1);           // 首尾2位
+        y = (temp>>1)&0xF;                          // 中间4位
+        temp = SBox[i][x][y];                       // S盒4位输出
+
+        // 输出加入结果
         temp = temp<<((7-i)*4);
         result |= temp;
     }
+
     return result;
 }
 
 
+// 解密操作
+//  解密过程与加密过程相似，解密与加密使用相同的算法
+//  但是，解密时子密钥的使用顺序要反过来
 void DES::decryption()
 {
     unsigned long long temp = permutations(cipherText, IP, 64, 64);
@@ -236,61 +277,110 @@ void DES::decryption()
     L = (temp&0xFFFFFFFF00000000LL)>>32;
     R = (temp&0x00000000FFFFFFFFLL);
     tempR = R;
-    for(int i = 0; i < 16; i++)
+
+    for(int i = 15; i >= 0; i--)
     {
         tempR = permutations(R, EP, 32, 48);
-        tempR = tempR & encKey[15 - i];
+        tempR = tempR ^ encKey[i];                  // 子密钥使用顺序相反
         tempR = SBoxes(tempR);
         tempR = permutations(tempR, P, 32, 32);
-        tempR = tempR & L;
+        tempR = tempR ^ L;
         L = R;
         R = tempR;
     }
     temp = (R<<32) | L;
-    temp = permutations(temp, IPI, 64, 64);
-    decipherText = temp;
+
+    decipherText = permutations(temp, IPI, 64, 64);
 }
 
-void DES::showBinary(unsigned long long num)
+
+
+
+
+
+
+// 数据转换为文本表示形式
+std::string DES::toString(unsigned long long num)
 {
+    std::string str = "";
+    char c;
+    for(int i = 0; i < 8; i++)
+    {
+        c = (char)((num >> (7-i)*8)&0xFF);
+        str += c;
+    }
+
+    return str;
+}
+
+// 数据转换为16进制表示形式
+std::string DES::toHex(unsigned long long num)
+{
+    static const char hex_table[16] = {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
+    std::string str = "";
+
+    for(int i = 0; i < 16; i++)
+    {
+        int tmp = (int)((num >> (15-i)*4)&0x000F);
+        str += hex_table[tmp];
+    }
+
+    return str;
+}
+
+// 数据转换为2进制表示形式
+std::string DES::toBin(unsigned long long num)
+{
+    std::string str = "";
     for(int i = 63; i >= 0; i--)
     {
-        cout << ((num>>i) & 1);
-        if(i % 8 == 0) cout << " ";     // 字节间分隔符
+        if((num>>i)&1)
+        {
+            str += '1';
+        }
+        else
+        {
+            str += '0';
+        }
+
+        if(i % 8 == 0) str += ' ';
     }
-    cout << endl;
+    
+    return str;
 }
 
-void DES::showResult()
+// 显示内部信息
+void DES::dump(std::ostream &out /* = std::cout */)
 {
-    cout << "key = ";
-    for(int i = 0; i < 8; i++)
+    out << "K: " << toString(key) << "\t" << toHex(key) << "\n"
+        << "P: " << toString(plainText) << "\t" << toHex(plainText) << "\n"
+        << "C: " << toString(cipherText) << "\t" << toHex(cipherText) << "\n"
+        << "D: " << toString(decipherText) << "\t" << toHex(decipherText) << "\n"
+        << "encKeys: " << "\n";
+
+    for(int i = 0; i < 16; i++)
     {
-        cout << (char)((key>>(7-i)*8)&0xFF);
+        out << (i+1) << ":\t" << toHex(encKey[i]) << "\n";
     }
-    cout << endl;
-    showBinary(key);
-    cout << "plainText = ";
-    for(int i = 0; i < 8; i++)
-    {
-        cout << (char)((plainText >> (7-i)*8)&0xFF);
-    }
-    cout << endl;
-    showBinary(plainText);
-    cout << "cipherText = ";
-    for(int i = 0; i < 8; i++)
-    {
-        cout << (char)((cipherText >> (7-i)*8)&0xFF);
-    }
-    cout << endl;
-    showBinary(cipherText);
-    cout << "decipherText = ";
-    for(int i = 0; i < 8; i++)
-    {
-        cout << (char)((decipherText >> (7-i)*8)&0xFF);
-    }
-    cout << endl;
-    showBinary(decipherText);
 }
 
+
+// 返回内部信息
+std::string DES::getCipherText()
+{
+    return toString(cipherText);
+}
+
+std::string DES::getDecipherText()
+{
+    return toString(decipherText);
+}
+
+std::string DES::getKey()
+{
+    return toString(key);
+}
 
