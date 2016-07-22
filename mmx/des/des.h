@@ -14,6 +14,8 @@ class DES
     void setKey(const char k[]);                    // 文本设置密钥
     void setPlainText(unsigned long long p);        // 直接设置明文
     void setPlainText(const char p[]);              // 文本设置明文
+    void setCipherText(unsigned long long c);       // 设置密文
+    void setCipherText(const char c[]);             // 文本设置密文
     void genEncKey();                               // 轮密钥生成器
     void encryption();                              // 加密模块
     void decryption();                              // 解密模块
@@ -23,11 +25,6 @@ class DES
     std::string getCipherText();                    // 输出加密文本
     std::string getDecipherText();                  // 输出解密文本
     std::string getKey();                           // 显示密钥
-
-    // 类型转换工具
-    std::string toString(unsigned long long num);
-    std::string toHex(unsigned long long num);
-    std::string toBin(unsigned long long num);
 
   private:
     unsigned long long  permutations(unsigned long long num,
