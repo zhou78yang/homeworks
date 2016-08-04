@@ -7,7 +7,7 @@ int map[N][N] = {0};
 
 void traver(int n)
 {
-    int r = 1, c = 1, dr, dc;
+    int r = 1, c = 1, nr, nc;   // nextR, nextC
     bool southwest = false;
 
     while(true)
@@ -20,27 +20,28 @@ void traver(int n)
 
         if(southwest)
         {
-            dr = 1; dc = -1;
+            nr = r+1; nc = c-1;
         }
         else
         {
-            dr = -1; dc = 1;
+            nr = r-1; nc = c+1;
         }
 
-        r += dr; c += dc;
-        if(r < 1 || r > n)
+        if(nr < 1 || nr > n)
         {
-            r -= dr; c -= dc;
             if(c < n) c++;
             else r++;
             southwest = !southwest;
         }
-        if(c < 1 || c > n)
+        else if(nc < 1 || nc > n)
         {
-            r -= dr; c -= dc;
             if(r < n) r++;
             else c++;
             southwest = !southwest;
+        }
+        else
+        {
+            r = nr; c = nc;
         }
     }
     cout << endl;

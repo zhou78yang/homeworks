@@ -1,33 +1,37 @@
 #include <iostream>
 using namespace std;
 
-int shift;
-int map[25][12] = {0}, block[4][4];
+int table[25][15] = {0}, block[4][4];
 
-bool can_place(int l)
+bool check(int l, int s)
 {
     for(int i = 0; i < 4; i++)
     {
         for(int j = 0; j < 4; j++)
         {
-            if(block[i][j] && map[l+i][j+shift])
+            if(table[l+i][s+j] && block[i][j])
             {
                 return false;
             }
         }
     }
+
     return true;
 }
 
 int main()
 {
-    for(int i = 4; i < 19; i++)
+    int shift;
+
+    // input
+    for(int i = 5; i < 20; i++)
     {
         for(int j = 1; j <= 10; j++)
         {
-            cin >> map[i][j];
+            cin >> table[i][j];
         }
     }
+    for(int i = 1; i <= 10; i++) table[20][i] = 1;
     for(int i = 0; i < 4; i++)
     {
         for(int j = 0; j < 4; j++)
@@ -37,38 +41,28 @@ int main()
     }
     cin >> shift;
 
-    int l = 1, bottom = 15;
-    for(int i = 3; i >= 0; i--)
+    // process
+    for(int l = 1; l < 20; l++)
     {
-        bool flag = true;
-        for(int j = 0; j < 4; j++)
+        if(!check(l+1, shift))
         {
-            if(block[i][j])
+            for(int i = 0; i < 4; i++)
             {
-                flag = false;
-                break;
+                for(int j = 0; j < 4; j++)
+                {
+                    table[l+i][shift+j] += block[i][j];
+                }
             }
-        }
-        if(flag) bottom++;
-        else break;
-    }
-
-    while(can_place(l) && l <= bottom) l++;
-
-    l--;
-    for(int i = 0; i < 4; i++)
-    {
-        for(int j = 0; j < 4; j++)
-        {
-            map[l+i][shift+j] += block[i][j];
+            break;
         }
     }
 
-    for(int i = 4; i < 19; i++)
+    // output
+    for(int i = 5; i < 20; i++)
     {
         for(int j = 1; j <= 10; j++)
         {
-            cout << map[i][j] << " ";
+            cout << table[i][j] << " ";
         }
         cout << endl;
     }
